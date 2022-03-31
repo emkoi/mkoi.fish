@@ -6,8 +6,44 @@ function random(a,b) {
     return a + Math.random()*(b-a);
 }
 
+// exponential distribution; mean = 1 / lambda
+function expRandom(lambda) {
+    return Math.log(1.0 + Math.random()) / lambda;
+}
+
+class FishBrain {
+    constructor(fish) {
+        this.fish = fish;
+        this.mood = "active";
+        this.fish.maxSpurtEnergy_J = 0.3;
+        this.fish.maxFishPower_W = 62;
+        this.wait = 0;
+        this.waited = 0;
+    }
+    
+    update(dt_s) {
+        this.waited += dt_s;
+        if (this.waited > this.wait) {
+            this.waited -= this.wait;
+            if (this.mood === "active") {
+                this.wait = expRandom(0.02); // average 50 s
+                this.mood = "tired";
+                this.fish.maxSpurtEnergy_J = 0.001;
+                this.fish.maxFishPower_W = 0.1;
+            }
+            else {
+                this.wait = expRandom(6.67e-3); // average 150 s
+                this.mood = "active";
+                this.fish.maxSpurtEnergy_J = 0.3;
+                this.fish.maxFishPower_W = 62;
+            }
+        }
+    }
+}
+
 export class Fish {
     constructor(x_px, y_px, fishName) {
+        this.brain = new FishBrain(this);
         this.x_m = x_px / World.PX_PER_M;
         this.y_m = y_px / World.PX_PER_M;
         this.mass_kg = 1.0; // actually about right for a koi
@@ -39,7 +75,7 @@ export class Fish {
         this.elem.className = "fish";
         $("#fishtank").append(this.elem);
 
-        this.test1 = 0;
+        this.brain.update(World.timeStep_ms / 1000);
     }
 
     destruct() {
@@ -72,6 +108,7 @@ export class Fish {
 
     // the fish's "ai" i guess
     think(dt_s) {
+        this.brain.update(dt_s);
         // bounce-back; random offsets because we render fish with html text elements and have no bounding boxes
         if (this.y_m > (window.innerHeight + 40) / World.PX_PER_M * 0.475) {
             this.yVel_mPerS = -Math.abs(this.yVel_mPerS);
@@ -90,9 +127,15 @@ export class Fish {
         const speed_mPerS = this.speed_mPerS();
         if (this.spurtEnergy_J == 0.0 && speed_mPerS < this.spurtTriggerSpeed_mPerS) {
             this.heading_rad = Math.random() * 2 * Math.PI;
-            this.fishPower_W = random(5, this.maxFishPower_W);
+            if (this.brain.mood == "active") {
+                this.fishPower_W = random(5, this.maxFishPower_W);
+                this.spurtTriggerSpeed_mPerS = random(0.1, 0.3);
+            }
+            else {
+                this.fishPower_W = random(0, this.maxFishPower_W);
+                this.spurtTriggerSpeed_mPerS = random(0.0, 0.1);
+            }
             this.spurtEnergy_J = random(0, this.maxSpurtEnergy_J);
-            this.spurtTriggerSpeed_mPerS = random(0.1, 0.3);
         }
     }
 
@@ -122,6 +165,7 @@ export class Fish {
             this.spurtEnergy_J -= kineticEnergyIncrease_J;
         }
         // (derived from Kinetic energy = 0.5*m*v^2)
+        // we do it this way because computing the acceleration (through F = ma = P/v)  will give us infinity when the fish is still
         let dV = Math.sqrt(Math.sqrt(2 * kineticEnergyIncrease_J / this.mass_kg) + fishSpeed_mPerS**2) - fishSpeed_mPerS;
 
         // apply drag

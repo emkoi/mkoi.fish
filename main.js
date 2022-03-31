@@ -4,10 +4,18 @@ import { Fish } from "./fish.js"
 $(document).ready(init);
 $(document).click(addFish);
 
+// exponential distribution; mean = 1 / lambda
+function expRandom(lambda) {
+    return Math.log(1.0 + Math.random()) / lambda;
+}
+let wait_s = expRandom(1.66e-2);
+let waited_s = 0.0;
+
 function init() {
     setInterval(main, World.timeStep_ms); // update every 5ms    
     tank.push(new Fish(0, 50, "mkoi"));
-    for (let i = 0; i < 200; i++) addFish();
+    const initialFish = Math.min(200, World.maxFish);
+    for (let i = 0; i < initialFish; i++) addFish();
 }
 
 // returns rand float value in [a, b)
