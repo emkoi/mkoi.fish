@@ -1,5 +1,4 @@
 
-
 // fish with 1 color can be these
 let pureColors = [
     0x191919, // natural black
@@ -41,8 +40,6 @@ let triColors = [
     0xfc6900, // orange
     0xfc4b00, // red-orange
 ];
-
-
 
 export function getRandomKoiColors() {
     const pureChance = 0.15;
