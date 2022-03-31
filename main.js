@@ -1,19 +1,14 @@
 import { getRandomKoiColors } from "./koiColors.js";
-
-const timeStep_ms = 30;
+import { World } from "./worldVars.js";
 
 $(document).ready(init);
 $(document).click(addFish);
 
 function init() {
-    setInterval(main, timeStep_ms); // update every 5ms    
+    setInterval(main, World.timeStep_ms); // update every 5ms    
     tank.push(new Fish(0, 50, "mkoi"));
     for (let i = 0; i < 200; i++) addFish();
 }
-
-let middle_x = window.innerWidth  / 2;
-let middle_y = window.innerHeight / 2;
-let min_dimension = Math.min(window.innerWidth, window.innerHeight);
 
 // returns rand float value in [a, b)
 function random(a,b) {
@@ -25,16 +20,10 @@ function randInt(a, b) {
     return Math.floor(random(a, b));
 }
 
-// a koi is about 50 px wide
-// a 1 kg koi is also being assumed. this translates to a 15"/38 cm koi
-// (source: https://russellwatergardens.com/pages/koi-length-and-weight)
-// therefore, the conversion rate from cm to px is about 1.316
-const PX_PER_M = 131.6;
-
 class Fish {
-    constructor(x, y, fishName) {
-        this.x_m = x / PX_PER_M;
-        this.y_m = y / PX_PER_M;
+    constructor(x_px, y_px, fishName) {
+        this.x_m = x_px / World.PX_PER_M;
+        this.y_m = y_px / World.PX_PER_M;
         this.mass_kg = 1.0; // actually about right for a koi
         this.heading_rad = 0.0;
         // hand-calculated with an approximate fish model (2 trapezoids front-to-back)
@@ -42,17 +31,6 @@ class Fish {
         this.angVel_radPerS = 0;
         this.xVel_mPerS = 0.0;
         this.yVel_mPerS = 0.0;
-        /*
-            * 	2.5% of 380 mm Salmon & Walleye can swim 7 m/s for at least 4.1 s
-            * 	97.5% of 380 mm Salmon & Walleye cannot swim 7 m/s.
-            * 	GroupName 			ScientificName 		CommonName 
-            * 	Salmon & Walleye 	Cyprinus carpio 	Carp 
-            * 	(source: http://www.fishprotectiontools.ca/userguide.html)
-            */
-        // unfortunately, the source above wasn't useful for burst speeds (sustained for < 1s)
-        // therefore, the burst speed of 1000 px/s (equivalently, 7.6 m/s) is assumed to be 
-        // reasonable based on eyeing it
-        this.nextSpurtVel_pxPerS__old = 1000;
         // assuming 4" diameter, circular cross-section fish
         // koi fish are thick so its not too bad
         this.crossSectionalArea_m2 = 0.0081; 
@@ -83,11 +61,11 @@ class Fish {
     }
 
     // returns magnitude of current velocity
-    speed_pxPerS() { return PX_PER_M * this.speed_mPerS(); }
+    speed_pxPerS() { return World.PX_PER_M * this.speed_mPerS(); }
     speed_mPerS() { return Math.sqrt(this.xVel_mPerS**2 + this.yVel_mPerS**2); }
 
     // returns distance (in px) from the center of the page
-    distFromCenter_px() { return PX_PER_M * this.distFromCenter_m(); }
+    distFromCenter_px() { return World.PX_PER_M * this.distFromCenter_m(); }
     distFromCenter_m() { return Math.sqrt(this.x_m**2 + this.y_m**2); }
 
     /**
@@ -109,16 +87,16 @@ class Fish {
     // the fish's "ai" i guess
     think(dt_s) {
         // bounce-back; random offsets because we render fish with html text elements and have no bounding boxes
-        if (this.y_m > (window.innerHeight + 40) / PX_PER_M * 0.475) {
+        if (this.y_m > (window.innerHeight + 40) / World.PX_PER_M * 0.475) {
             this.yVel_mPerS = -Math.abs(this.yVel_mPerS);
         }
-        else if (this.y_m < (-window.innerHeight + 160) / PX_PER_M * 0.475) {
+        else if (this.y_m < (-window.innerHeight + 160) / World.PX_PER_M * 0.475) {
             this.yVel_mPerS = Math.abs(this.yVel_mPerS);
         }
-        if (this.x_m > (window.innerWidth - 80) / PX_PER_M * 0.475) {
+        if (this.x_m > (window.innerWidth - 80) / World.PX_PER_M * 0.475) {
             this.xVel_mPerS = -Math.abs(this.xVel_mPerS);
         }
-        else if (this.x_m < (-window.innerWidth - 20) / PX_PER_M * 0.475) {
+        else if (this.x_m < (-window.innerWidth - 20) / World.PX_PER_M * 0.475) {
             this.xVel_mPerS = Math.abs(this.xVel_mPerS);
         }
 
@@ -139,8 +117,8 @@ class Fish {
         this.y_m += this.yVel_mPerS*dt_s;
 
         // set draw pos
-        this.elem.style.left = middle_x + Math.round(this.x_m * PX_PER_M) + "px";
-        this.elem.style.top  = middle_y - Math.round(this.y_m * PX_PER_M) + "px";
+        this.elem.style.left = World.middle_x + Math.round(this.x_m * World.PX_PER_M) + "px";
+        this.elem.style.top  = World.middle_y - Math.round(this.y_m * World.PX_PER_M) + "px";
         
         // drag
         // (ref https://en.wikipedia.org/wiki/Drag_equation)
@@ -198,7 +176,6 @@ class Fish {
 }
 
 let fishCount = 0;
-const maxFish = 200;
 let tank = [];
 
 function main() {
@@ -206,16 +183,14 @@ function main() {
         // but if wanted to, this how do stop
         clearInterval(id);
     } else {
-        //mkoi.update(timeStep_ms / 1000.0); 
         for (let fish in tank) {
-            tank[fish].update(timeStep_ms / 1000.0);
+            tank[fish].update(World.timeStep_ms / 1000.0);
         }
     }
 }
 
 function addFish() {
-    if (fishCount >= maxFish) return;
-    const spawnRadius = min_dimension * 0.25;
+    if (fishCount >= World.maxFish) return;
     tank.push(new Fish(
         random(-innerWidth * 0.375 - 20, innerWidth * 0.375 - 80), 
         random(-innerHeight * 0.375 + 80, innerHeight * 0.375 + 40), 
