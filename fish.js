@@ -6,36 +6,93 @@ function random(a,b) {
     return a + Math.random()*(b-a);
 }
 
+// returns in range [a, b)
+function randInt(a, b) {
+    return Math.floor(random(a, b));
+}
+
 // exponential distribution; mean = 1 / lambda
 function expRandom(lambda) {
     return Math.log(1.0 + Math.random()) / lambda;
+}
+
+// direction from a to b in radians
+function vect2Dir(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    let dir = Math.atan(dy / dx); // between -pi/2 & +pi/2
+    if (dx < 0) dir += Math.PI;
+    return dir;
 }
 
 class FishBrain {
     constructor(fish) {
         this.fish = fish;
         this.mood = "active";
+        this.submood = "";
         this.fish.maxSpurtEnergy_J = 0.3;
         this.fish.maxFishPower_W = 62;
-        this.wait = 0;
-        this.waited = 0;
+        this.moodDuration = 0;
+        this.moodWaited = 0;
+        this.submoodDuration = 0;
+        this.submoodWaited = 0;
     }
     
     update(dt_s) {
-        this.waited += dt_s;
-        if (this.waited > this.wait) {
-            this.waited -= this.wait;
+        this.moodWaited += dt_s;
+        this.submoodWaited += dt_s;
+
+        // handle mood
+        if (this.moodWaited > this.moodDuration) {
+            this.moodWaited -= this.moodDuration;
             if (this.mood === "active") {
-                this.wait = expRandom(0.02); // average 50 s
+                this.moodDuration = expRandom(3.33e-2); // average 30 s
                 this.mood = "tired";
                 this.fish.maxSpurtEnergy_J = 0.001;
                 this.fish.maxFishPower_W = 0.1;
             }
             else {
-                this.wait = expRandom(6.67e-3); // average 150 s
+                this.moodDuration = expRandom(6.67e-3); // average 150 s
                 this.mood = "active";
                 this.fish.maxSpurtEnergy_J = 0.3;
                 this.fish.maxFishPower_W = 62;
+            }
+
+            // reset submood
+            this.submoodWaited = 0;
+            this.submood = "";
+            this.submoodDuration = 0;
+        }
+
+        // handle initial submood
+        if (this.submood === "") {
+            if (this.mood === "active") {
+                if (Math.random() > 0.8) {
+                    this.submood = "aimless";
+                    this.submoodDuration = expRandom(0.05); // average 20 s
+                }
+                else {
+                    this.submood = "schooling";
+                    this.submoodDuration = expRandom(0.02); // average 20 s
+                }
+            }
+            else {
+                // nothing to do; no submoods for "tired" mood
+            }
+        }
+
+        // handle submood changes
+        if (this.submoodWaited > this.submoodDuration) {
+            this.submoodWaited = 0.0;
+            if (this.submood === "aimless" || this.submood === "schooling") {
+                if (Math.random() > 0.8) {
+                    this.submood = "aimless";
+                    this.submoodDuration = expRandom(0.05); // average 20 s
+                }
+                else {
+                    this.submood = "schooling";
+                    this.submoodDuration = expRandom(0.02); // average 50 s
+                }
             }
         }
     }
@@ -63,6 +120,7 @@ export class Fish {
         this.maxSpurtEnergy_J = 0.3;
         this.spurtEnergy_J = 0;
         this.spurtTriggerSpeed_mPerS = 0.25;
+        this.fishToFollow = undefined;
 
         let colors = getRandomKoiColors();
 
@@ -126,7 +184,51 @@ export class Fish {
         // trigger a spurt
         const speed_mPerS = this.speed_mPerS();
         if (this.spurtEnergy_J == 0.0 && speed_mPerS < this.spurtTriggerSpeed_mPerS) {
-            this.heading_rad = Math.random() * 2 * Math.PI;
+            if (this.brain.submood === "schooling") {
+                if (!this.fishToFollow) {
+                    // follow the closest fish among 20 random fish
+                    let consideredFishInd = randInt(0, World.fishCount);
+                    const numFishToConsider = Math.min(World.tank.length - 1, 20);
+                    let closestFish = undefined;
+                    let closestFishDist2_m2 = Infinity;
+                    for (let i = 0; i < numFishToConsider; i++) {
+                        let consideredFish = World.tank[consideredFishInd];
+                        // dont consider self
+                        if (consideredFish === this) {
+                            i--;
+                            consideredFishInd++;
+                            continue;
+                        }
+                        else if (consideredFish.mood === "tired") {
+                            // dont follow tired fish
+                            consideredFishInd++;
+                            continue;
+                        }
+
+                        let fishDist2_m2 = (this.x_m - consideredFish.x_m)**2 + (this.y_m - consideredFish.y_m)**2;
+                        if (fishDist2_m2 < closestFishDist2_m2) {
+                            closestFishDist2_m2 = fishDist2_m2;
+                            closestFish = consideredFish;
+                        }
+
+                        consideredFishInd++;
+                        if (consideredFishInd >= World.tank.length) {
+                            consideredFishInd = 0;
+                        }
+                    }
+                    this.fishToFollow = closestFish;
+                }
+
+                if (this.fishToFollow) {
+                    this.heading_rad = vect2Dir({x: this.x_m, y: this.y_m}, {x: this.fishToFollow.x_m, y: this.fishToFollow.y_m});
+                }
+                else {
+                    this.heading_rad = Math.random() * 2 * Math.PI;
+                }
+            }
+            else {
+                this.heading_rad = Math.random() * 2 * Math.PI;
+            }
             if (this.brain.mood == "active") {
                 this.fishPower_W = random(5, this.maxFishPower_W);
                 this.spurtTriggerSpeed_mPerS = random(0.1, 0.3);

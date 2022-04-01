@@ -7,5 +7,7 @@ export let World = {
     // (source: https://russellwatergardens.com/pages/koi-length-and-weight)
     // therefore, the conversion rate from cm to px is about 1.316
     PX_PER_M: 131.6,
-    maxFish: 200
+    maxFish: 200,
+    tank: [],
+    fishCount: 0
 };

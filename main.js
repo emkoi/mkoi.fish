@@ -13,7 +13,7 @@ let waited_s = 0.0;
 
 function init() {
     setInterval(main, World.timeStep_ms); // update every 5ms    
-    tank.push(new Fish(0, 50, "mkoi"));
+    World.tank.push(new Fish(0, 50, "mkoi"));
     const initialFish = Math.min(200, World.maxFish);
     for (let i = 0; i < initialFish; i++) addFish();
 }
@@ -28,33 +28,30 @@ function randInt(a, b) {
     return Math.floor(random(a, b));
 }
 
-let fishCount = 0;
-let tank = [];
-
 function main() {
     if (false) {  // never end lol
         // but if wanted to, this how do stop
         clearInterval(id);
     } else {
-        for (let fish in tank) {
-            tank[fish].update(World.timeStep_ms / 1000.0);
+        for (let fish in World.tank) {
+            World.tank[fish].update(World.timeStep_ms / 1000.0);
         }
     }
 }
 
 function addFish() {
-    if (fishCount >= World.maxFish) return;
-    tank.push(new Fish(
+    if (World.fishCount >= World.maxFish) return;
+    World.tank.push(new Fish(
         random(-innerWidth * 0.375 - 20, innerWidth * 0.375 - 80), 
         random(-innerHeight * 0.375 + 80, innerHeight * 0.375 + 40), 
-        "fish" + ++fishCount)
+        "fish" + ++World.fishCount)
     );
 }
 
 // don't do this :(
 function removeFish() {
-    if (fishCount == 0) return;
-    let fishIndex = randInt(0, fishCount + 1);
-    tank[fishIndex].destruct();
-    tank.splice(fishIndex, 1);
+    if (World.fishCount == 0) return;
+    let fishIndex = randInt(0, World.fishCount + 1);
+    World.tank[fishIndex].destruct();
+    World.tank.splice(fishIndex, 1);
 }
