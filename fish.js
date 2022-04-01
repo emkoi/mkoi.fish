@@ -16,6 +16,11 @@ function expRandom(lambda) {
     return Math.log(1.0 + Math.random()) / lambda;
 }
 
+// normal distribution w/ mean = 0, var = 1
+function normRandom() {
+    return Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+}
+
 // direction from a to b in radians
 function vect2Dir(a, b) {
     const dx = b.x - a.x;
@@ -50,6 +55,7 @@ class FishBrain {
                 this.mood = "tired";
                 this.fish.maxSpurtEnergy_J = 0.001;
                 this.fish.maxFishPower_W = 0.1;
+                this.fishToFollow = undefined;
             }
             else {
                 this.moodDuration = expRandom(6.67e-3); // average 150 s
@@ -73,7 +79,7 @@ class FishBrain {
                 }
                 else {
                     this.submood = "schooling";
-                    this.submoodDuration = expRandom(0.02); // average 20 s
+                    this.submoodDuration = expRandom(0.02); // average 50 s
                 }
             }
             else {
@@ -88,6 +94,7 @@ class FishBrain {
                 if (Math.random() > 0.8) {
                     this.submood = "aimless";
                     this.submoodDuration = expRandom(0.05); // average 20 s
+                    this.fish.fishToFollow = undefined;
                 }
                 else {
                     this.submood = "schooling";
@@ -104,7 +111,7 @@ export class Fish {
         this.x_m = x_px / World.PX_PER_M;
         this.y_m = y_px / World.PX_PER_M;
         this.mass_kg = 1.0; // actually about right for a koi
-        this.heading_rad = 0.0;
+        this.heading_rad = random(0, Math.PI * 2.0);
         // hand-calculated with an approximate fish model (2 trapezoids front-to-back)
         this.moment_kgm2 = 6.34e-2;
         this.angVel_radPerS = 0;
@@ -193,19 +200,31 @@ export class Fish {
                     let closestFishDist2_m2 = Infinity;
                     for (let i = 0; i < numFishToConsider; i++) {
                         let consideredFish = World.tank[consideredFishInd];
-                        // dont consider self
-                        if (consideredFish === this) {
-                            i--;
-                            consideredFishInd++;
-                            continue;
+
+                        // dont follow a fish that is you, or a fish that is following you, or a fish that is 
+                        // following a fish that is following you, or a fish that is following a fish that is 
+                        // following a fish that is following you, etc.
+                        let fishInChain = consideredFish;
+                        let fishChainEventuallyFollowsThisFish = false;
+                        while (fishInChain) {
+                            if (fishInChain === this) {
+                                // invalid fish
+                                consideredFishInd++;
+                                fishChainEventuallyFollowsThisFish = true;
+                                break;
+                            }
+                            fishInChain = fishInChain.fishToFollow;
+                            if (fishInChain === consideredFish) break;
                         }
-                        else if (consideredFish.mood === "tired") {
-                            // dont follow tired fish
+                        if (fishChainEventuallyFollowsThisFish) continue;
+
+                        // dont follow tired fish
+                        if (consideredFish.mood === "tired") {
                             consideredFishInd++;
                             continue;
                         }
 
-                        let fishDist2_m2 = (this.x_m - consideredFish.x_m)**2 + (this.y_m - consideredFish.y_m)**2;
+                        const fishDist2_m2 = (this.x_m - consideredFish.x_m)**2 + (this.y_m - consideredFish.y_m)**2;
                         if (fishDist2_m2 < closestFishDist2_m2) {
                             closestFishDist2_m2 = fishDist2_m2;
                             closestFish = consideredFish;
@@ -223,11 +242,14 @@ export class Fish {
                     this.heading_rad = vect2Dir({x: this.x_m, y: this.y_m}, {x: this.fishToFollow.x_m, y: this.fishToFollow.y_m});
                 }
                 else {
-                    this.heading_rad = Math.random() * 2 * Math.PI;
+                    // sample of normal dist. w/ mean = 0 & std. dev = pi/4.
+                    // So 68% of the time, the fish will make a < 45 degree turn...
+                    // 95% of the time, the fish will make a < 90 degree turn.
+                    this.heading_rad += Math.PI * Math.PI * 0.0625 * normRandom();
                 }
             }
             else {
-                this.heading_rad = Math.random() * 2 * Math.PI;
+                this.heading_rad += Math.PI * Math.PI * 0.0625 * normRandom();
             }
             if (this.brain.mood == "active") {
                 this.fishPower_W = random(5, this.maxFishPower_W);
