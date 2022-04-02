@@ -199,6 +199,9 @@ export class Fish {
                     let closestFish = undefined;
                     let closestFishDist2_m2 = Infinity;
                     for (let i = 0; i < numFishToConsider; i++) {
+                        if (consideredFishInd >= World.tank.length) {
+                            consideredFishInd = 0;
+                        }
                         let consideredFish = World.tank[consideredFishInd];
 
                         // dont follow a fish that is you, or a fish that is following you, or a fish that is 
@@ -231,9 +234,6 @@ export class Fish {
                         }
 
                         consideredFishInd++;
-                        if (consideredFishInd >= World.tank.length) {
-                            consideredFishInd = 0;
-                        }
                     }
                     this.fishToFollow = closestFish;
                 }
