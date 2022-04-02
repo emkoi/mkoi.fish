@@ -28,11 +28,31 @@ function randInt(a, b) {
     return Math.floor(random(a, b));
 }
 
+// change this so its not in some random time zone nobody cares about
+function dayPercentComplete() {
+    const date = new Date();
+    const time_ms = date.getTime() - date.getTimezoneOffset() * 60000; // ...since 1/1/1970
+    const daySpeedMultiplier = 1.0;
+    const dayTime_ms = time_ms * daySpeedMultiplier % 86400000;
+    return dayTime_ms / 864000;
+}
+
+function worldUpdate() {
+    World.time = dayPercentComplete();
+    let alphaMultiplier = (Math.max(15, Math.min(35.0, Math.abs((World.time + 95.0) % 100 - 50.0))) - 15) / 20.0;
+    const rgbaStr = `rgba(${World.overlayColor[0]}, 
+        ${World.overlayColor[1]}, 
+        ${World.overlayColor[2]}, 
+        ${alphaMultiplier * World.overlayColor[3]})`;
+    $('#overlay').css('background-color', rgbaStr);
+}
+
 function main() {
     if (false) {  // never end lol
         // but if wanted to, this how do stop
         clearInterval(id);
     } else {
+        worldUpdate();
         for (let fish in World.tank) {
             World.tank[fish].update(World.timeStep_ms / 1000.0);
         }

@@ -9,5 +9,7 @@ export let World = {
     PX_PER_M: 131.6,
     maxFish: 200,
     tank: [],
-    fishCount: 0
+    fishCount: 0,
+    waterColor: [0x24, 0x9e, 0xf4],
+    overlayColor: [0, 0, 40, 0.8]
 };
